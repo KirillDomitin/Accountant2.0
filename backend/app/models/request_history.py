@@ -20,6 +20,7 @@ class RequestHistory(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     inn: Mapped[str] = mapped_column(String(12), nullable=False, index=True)
     org_name: Mapped[str | None] = mapped_column(String(500), nullable=True)
     status: Mapped[RequestStatus] = mapped_column(

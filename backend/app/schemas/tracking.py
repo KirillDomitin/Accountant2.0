@@ -27,6 +27,7 @@ class TrackingChangeResponse(BaseModel):
 
 class TrackedInnResponse(BaseModel):
     id: uuid.UUID
+    user_id: uuid.UUID | None = None
     inn: str
     org_name: str | None
     is_active: bool

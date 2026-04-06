@@ -62,7 +62,326 @@ function Toast({ toast, onClose }) {
   )
 }
 
+// ── Login Page ────────────────────────────────────────────────────────────────
+
+function LoginPage({ onLogin }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!email || !password) return
+    setLoading(true)
+    setError('')
+    try {
+      const payload = await api.login(email, password)
+      onLogin(payload)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
+          <div className="bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-violet-500/10 p-8">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-violet-500 text-xl font-bold shadow-lg select-none">
+                А
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Платформа бухгалтера</p>
+                <h1 className="text-xl font-semibold">Контур Документы</h1>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs text-slate-400 uppercase tracking-wide">Email</label>
+                <input
+                  type="email"
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none placeholder:text-slate-500 focus:border-cyan-500/50 transition-colors"
+                  placeholder="user@example.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs text-slate-400 uppercase tracking-wide">Пароль</label>
+                <input
+                  type="password"
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none placeholder:text-slate-500 focus:border-cyan-500/50 transition-colors"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || !email || !password}
+                className="w-full rounded-2xl bg-cyan-500/90 px-6 py-3 text-sm font-semibold text-slate-950 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-cyan-400/90 transition-colors"
+              >
+                {loading ? 'Вход...' : 'Войти'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Admin: Users Panel ────────────────────────────────────────────────────────
+
+function UsersPanel({ showToast }) {
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [createModal, setCreateModal] = useState(false)
+
+  const loadUsers = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await api.getUsers()
+      setUsers(data)
+    } catch (e) {
+      showToast('error', e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast])
+
+  useEffect(() => { loadUsers() }, [loadUsers])
+
+  const handleToggleActive = async (user) => {
+    try {
+      await api.setUserActive(user.id, !user.is_active)
+      showToast('success', `Пользователь ${user.email} ${user.is_active ? 'деактивирован' : 'активирован'}`)
+      loadUsers()
+    } catch (e) {
+      showToast('error', e.message)
+    }
+  }
+
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-xl font-semibold">Пользователи</h2>
+          <p className="text-sm text-slate-400 mt-1">Управление доступом</p>
+        </div>
+        <button
+          onClick={() => setCreateModal(true)}
+          className="rounded-2xl bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400/90 transition-colors"
+        >
+          + Создать
+        </button>
+      </div>
+
+      <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/40">
+        <div className="grid grid-cols-[1fr,0.5fr,0.5fr,0.4fr] gap-4 border-b border-white/10 px-5 py-4 text-xs uppercase tracking-wide text-slate-400">
+          <div>Email</div>
+          <div>Роль</div>
+          <div>Статус</div>
+          <div></div>
+        </div>
+
+        {loading && <div className="px-5 py-8 text-center text-slate-500">Загрузка...</div>}
+        {!loading && users.length === 0 && (
+          <div className="px-5 py-8 text-center text-slate-500">Нет пользователей</div>
+        )}
+        {users.map(user => (
+          <div
+            key={user.id}
+            className="grid grid-cols-[1fr,0.5fr,0.5fr,0.4fr] gap-4 px-5 py-4 border-b border-white/5 last:border-b-0 items-center hover:bg-white/[0.03] transition-colors"
+          >
+            <div className="font-medium text-sm truncate">{user.email}</div>
+            <div>
+              <span className={`inline-flex rounded-full border px-3 py-1 text-xs ${user.role === 'admin' ? 'bg-violet-500/15 text-violet-300 border-violet-400/30' : tagStyle('active')}`}>
+                {user.role === 'admin' ? 'Админ' : 'Пользователь'}
+              </span>
+            </div>
+            <div>
+              <span className={`inline-flex rounded-full border px-3 py-1 text-xs ${tagStyle(user.is_active ? 'active' : 'inactive')}`}>
+                {user.is_active ? 'Активен' : 'Заблокирован'}
+              </span>
+            </div>
+            <div>
+              {user.role !== 'admin' && (
+                <button
+                  onClick={() => handleToggleActive(user)}
+                  className={`rounded-xl border px-3 py-1.5 text-xs transition-colors ${
+                    user.is_active
+                      ? 'border-rose-400/20 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20'
+                      : 'border-emerald-400/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+                  }`}
+                >
+                  {user.is_active ? 'Заблокировать' : 'Активировать'}
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {createModal && (
+        <CreateUserModal
+          onClose={() => setCreateModal(false)}
+          onCreated={() => { setCreateModal(false); loadUsers() }}
+          showToast={showToast}
+        />
+      )}
+    </div>
+  )
+}
+
+function CreateUserModal({ onClose, onCreated, showToast }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [role, setRole] = useState('user')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      await api.createUser(email, password, role)
+      showToast('success', `Пользователь ${email} создан`)
+      onCreated()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-semibold">Новый пользователь</h3>
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-white/10 bg-slate-800 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors"
+          >
+            Закрыть
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-xs text-slate-400 uppercase tracking-wide">Email</label>
+            <input
+              type="email"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none placeholder:text-slate-500 focus:border-cyan-500/50 transition-colors text-sm"
+              placeholder="user@example.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-slate-400 uppercase tracking-wide">Пароль</label>
+            <input
+              type="password"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none placeholder:text-slate-500 focus:border-cyan-500/50 transition-colors text-sm"
+              placeholder="Минимум 8 символов"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs text-slate-400 uppercase tracking-wide">Роль</label>
+            <select
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none focus:border-cyan-500/50 transition-colors text-sm"
+              value={role}
+              onChange={e => setRole(e.target.value)}
+            >
+              <option value="user">Пользователь</option>
+              <option value="admin">Администратор</option>
+            </select>
+          </div>
+
+          {error && (
+            <div className="rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || !email || !password}
+            className="w-full rounded-2xl bg-cyan-500/90 px-6 py-3 text-sm font-semibold text-slate-950 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-cyan-400/90 transition-colors"
+          >
+            {loading ? 'Создаю...' : 'Создать'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
+
 export default function App() {
+  // auth: null = initializing, false = not logged in, {sub, role} = logged in
+  const [auth, setAuth] = useState(null)
+
+  // Try to restore session from httpOnly cookie on mount
+  useEffect(() => {
+    api.tryRefresh().then(payload => setAuth(payload || false))
+  }, [])
+
+  const handleLogin = (payload) => setAuth(payload)
+
+  const handleLogout = async () => {
+    await api.logout()
+    setAuth(false)
+  }
+
+  if (auth === null) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-slate-500 text-sm">Загрузка...</div>
+      </div>
+    )
+  }
+
+  if (auth === false) {
+    return <LoginPage onLogin={handleLogin} />
+  }
+
+  return <MainApp auth={auth} onLogout={handleLogout} />
+}
+
+// ── Main App (authenticated) ──────────────────────────────────────────────────
+
+function MainApp({ auth, onLogout }) {
+  const isAdmin = auth.role === 'admin'
+
+  // uuid → email map, populated only for admin
+  const [userMap, setUserMap] = useState({})
+
   const [inn, setInn] = useState('')
   const [innValidationError, setInnValidationError] = useState('')
   const [lookupLoading, setLookupLoading] = useState(false)
@@ -76,15 +395,20 @@ export default function App() {
   const [trackingLoading, setTrackingLoading] = useState(false)
   const [trackInn, setTrackInn] = useState('')
   const [trackAddLoading, setTrackAddLoading] = useState(false)
-  const [bulkResult, setBulkResult] = useState(null) // { added, skipped, failed, results }
+  const [bulkResult, setBulkResult] = useState(null)
   const [checkingInns, setCheckingInns] = useState(new Set())
   const [confirmingInns, setConfirmingInns] = useState(new Set())
-  const [historyModal, setHistoryModal] = useState(null) // { inn, orgName, changes }
+  const [historyModal, setHistoryModal] = useState(null)
 
   const [toast, setToast] = useState(null)
 
-  const showToast = (type, message) => setToast({ type, message })
+  const showToast = useCallback((type, message) => setToast({ type, message }), [])
   const hideToast = useCallback(() => setToast(null), [])
+
+  const handleUnauthorized = useCallback((e) => {
+    if (e?.isUnauthorized) { onLogout(); return true }
+    return false
+  }, [onLogout])
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true)
@@ -92,25 +416,38 @@ export default function App() {
       const data = await api.getHistory(0, 10)
       setHistory(data.items)
       setHistoryTotal(data.total)
-    } catch { /* ignore */ } finally {
+    } catch (e) {
+      if (!handleUnauthorized(e)) { /* ignore */ }
+    } finally {
       setHistoryLoading(false)
     }
-  }, [])
+  }, [handleUnauthorized])
 
   const loadTracking = useCallback(async () => {
     setTrackingLoading(true)
     try {
       const data = await api.getTracking()
       setTracking(data)
-    } catch { /* ignore */ } finally {
+    } catch (e) {
+      if (!handleUnauthorized(e)) { /* ignore */ }
+    } finally {
       setTrackingLoading(false)
     }
-  }, [])
+  }, [handleUnauthorized])
 
   useEffect(() => {
     loadHistory()
     loadTracking()
   }, [loadHistory, loadTracking])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    api.getUsers().then(users => {
+      const map = {}
+      users.forEach(u => { map[u.id] = u.email })
+      setUserMap(map)
+    }).catch(() => {})
+  }, [isAdmin])
 
   const handleInnChange = (e) => {
     const clean = sanitizeInn(e.target.value)
@@ -135,7 +472,7 @@ export default function App() {
       showToast('success', `Готово: ${filename}`)
       loadHistory()
     } catch (e) {
-      setLookupError(e.message)
+      if (!handleUnauthorized(e)) setLookupError(e.message)
     } finally {
       setLookupLoading(false)
     }
@@ -162,7 +499,7 @@ export default function App() {
       }
       loadTracking()
     } catch (e) {
-      showToast('error', e.message)
+      if (!handleUnauthorized(e)) showToast('error', e.message)
     } finally {
       setTrackAddLoading(false)
     }
@@ -175,13 +512,9 @@ export default function App() {
       showToast('success', `Данные по ИНН ${innVal} обновлены`)
       loadTracking()
     } catch (e) {
-      showToast('error', e.message)
+      if (!handleUnauthorized(e)) showToast('error', e.message)
     } finally {
-      setConfirmingInns(prev => {
-        const next = new Set(prev)
-        next.delete(innVal)
-        return next
-      })
+      setConfirmingInns(prev => { const next = new Set(prev); next.delete(innVal); return next })
     }
   }
 
@@ -190,7 +523,7 @@ export default function App() {
       const data = await api.getTrackingDetail(innVal)
       setHistoryModal({ inn: innVal, orgName, changes: data.changes || [] })
     } catch (e) {
-      showToast('error', e.message)
+      if (!handleUnauthorized(e)) showToast('error', e.message)
     }
   }
 
@@ -200,7 +533,7 @@ export default function App() {
       showToast('success', `ИНН ${innVal} удалён из отслеживания`)
       loadTracking()
     } catch (e) {
-      showToast('error', e.message)
+      if (!handleUnauthorized(e)) showToast('error', e.message)
     }
   }
 
@@ -211,13 +544,9 @@ export default function App() {
       showToast(result.changed ? 'changed' : 'success', result.message)
       loadTracking()
     } catch (e) {
-      showToast('error', e.message)
+      if (!handleUnauthorized(e)) showToast('error', e.message)
     } finally {
-      setCheckingInns(prev => {
-        const next = new Set(prev)
-        next.delete(innVal)
-        return next
-      })
+      setCheckingInns(prev => { const next = new Set(prev); next.delete(innVal); return next })
     }
   }
 
@@ -247,19 +576,38 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3">
-                  <div className="text-xs text-slate-400">Выписок сегодня</div>
-                  <div className="mt-1 text-2xl font-semibold">{todayCount}</div>
+              <div className="flex items-center gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3">
+                    <div className="text-xs text-slate-400">Выписок сегодня</div>
+                    <div className="mt-1 text-2xl font-semibold">{todayCount}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3">
+                    <div className="text-xs text-slate-400">Мониторинг ИНН</div>
+                    <div className="mt-1 text-2xl font-semibold">{activeTrackingCount}</div>
+                  </div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3">
-                  <div className="text-xs text-slate-400">Мониторинг ИНН</div>
-                  <div className="mt-1 text-2xl font-semibold">{activeTrackingCount}</div>
+                <div className="flex flex-col items-end gap-2 ml-2">
+                  <div className="text-xs text-slate-400 text-right">
+                    {auth.email || auth.sub?.slice(0, 8) + '…'}
+                    <span className={`ml-2 inline-flex rounded-full border px-2 py-0.5 text-xs ${isAdmin ? 'bg-violet-500/15 text-violet-300 border-violet-400/30' : tagStyle('active')}`}>
+                      {isAdmin ? 'Админ' : 'Пользователь'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={onLogout}
+                    className="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800/70 transition-colors"
+                  >
+                    Выйти
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </header>
+
+        {/* ── Admin: Users Panel ── */}
+        {isAdmin && <UsersPanel showToast={showToast} />}
 
         {/* ── Main grid ── */}
         <section className="grid grid-cols-1 xl:grid-cols-12 gap-6">
@@ -327,11 +675,12 @@ export default function App() {
               </div>
 
               <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/40">
-                <div className="grid grid-cols-[1fr,0.7fr,0.5fr,0.65fr] gap-4 border-b border-white/10 px-5 py-4 text-xs uppercase tracking-wide text-slate-400">
+                <div className={`grid ${isAdmin ? 'grid-cols-[1fr,0.7fr,0.5fr,0.65fr,0.8fr]' : 'grid-cols-[1fr,0.7fr,0.5fr,0.65fr]'} gap-4 border-b border-white/10 px-5 py-4 text-xs uppercase tracking-wide text-slate-400`}>
                   <div>Компания</div>
                   <div>ИНН</div>
                   <div>Статус</div>
                   <div>Дата</div>
+                  {isAdmin && <div>Пользователь</div>}
                 </div>
 
                 {historyLoading && (
@@ -343,7 +692,7 @@ export default function App() {
                 {history.map(item => (
                   <div
                     key={item.id}
-                    className="grid grid-cols-[1fr,0.7fr,0.5fr,0.65fr] gap-4 px-5 py-4 border-b border-white/5 last:border-b-0 items-center hover:bg-white/[0.03] transition-colors"
+                    className={`grid ${isAdmin ? 'grid-cols-[1fr,0.7fr,0.5fr,0.65fr,0.8fr]' : 'grid-cols-[1fr,0.7fr,0.5fr,0.65fr]'} gap-4 px-5 py-4 border-b border-white/5 last:border-b-0 items-center hover:bg-white/[0.03] transition-colors`}
                   >
                     <div>
                       <div className="font-medium">{item.org_name || '—'}</div>
@@ -358,6 +707,11 @@ export default function App() {
                       </span>
                     </div>
                     <div className="text-slate-400 text-sm">{formatDate(item.created_at)}</div>
+                    {isAdmin && (
+                      <div className="text-slate-400 text-xs truncate">
+                        {item.user_id ? (userMap[item.user_id] || item.user_id.slice(0, 8) + '…') : '—'}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -402,7 +756,6 @@ export default function App() {
                     {trackAddLoading ? '...' : isBulk ? `+ Добавить ${parsedInns.length}` : '+ Добавить'}
                   </button>
                 </div>
-
               </div>
 
               <div className="mt-4 space-y-3">
@@ -423,6 +776,11 @@ export default function App() {
                       <div className="min-w-0">
                         <div className="font-medium text-sm truncate">{item.org_name || 'Неизвестно'}</div>
                         <div className="text-xs text-slate-400 mt-1">ИНН: {item.inn}</div>
+                        {isAdmin && item.user_id && (
+                          <div className="text-xs text-violet-400 mt-0.5 truncate">
+                            {userMap[item.user_id] || item.user_id.slice(0, 8) + '…'}
+                          </div>
+                        )}
                       </div>
                       <span className={`inline-flex rounded-full border px-3 py-1 text-xs shrink-0 ${tagStyle(item.is_active ? 'active' : 'inactive')}`}>
                         {item.is_active ? 'Активно' : 'Пауза'}
@@ -488,14 +846,14 @@ export default function App() {
               <div className="text-sm uppercase tracking-[0.25em] text-violet-300 mb-3">Быстрые действия</div>
               <div className="grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => document.querySelector('input[placeholder*="ИНН организации"]')?.focus()}
+                  onClick={() => document.querySelector('input[placeholder*="ИНН"]')?.focus()}
                   className="rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-left hover:bg-white/5 transition-colors"
                 >
                   <div className="font-medium text-sm">Новая выписка</div>
                   <div className="text-xs text-slate-400 mt-1">Поиск и скачивание</div>
                 </button>
                 <button
-                  onClick={() => document.querySelector('input[placeholder*="ИНН для отслеживания"]')?.focus()}
+                  onClick={() => document.querySelector('textarea')?.focus()}
                   className="rounded-2xl border border-white/10 bg-slate-950/40 p-4 text-left hover:bg-white/5 transition-colors"
                 >
                   <div className="font-medium text-sm">Мониторинг</div>
@@ -508,6 +866,7 @@ export default function App() {
         </section>
       </div>
 
+      {/* Bulk result modal */}
       {bulkResult && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4"
@@ -565,6 +924,7 @@ export default function App() {
         </div>
       )}
 
+      {/* History modal */}
       {historyModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4"

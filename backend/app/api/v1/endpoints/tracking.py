@@ -2,6 +2,7 @@ import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies import CurrentUser, get_current_user
 from app.core.exceptions import EgrulAPIError, OrganizationNotFoundError
 from app.db.redis import get_redis
 from app.db.session import get_db
@@ -27,16 +28,17 @@ async def add_tracking(
     body: TrackingAddRequest,
     session: AsyncSession = Depends(get_db),
     redis: aioredis.Redis = Depends(get_redis),
+    current_user: CurrentUser = Depends(get_current_user),
 ) -> TrackedInnResponse:
     try:
-        await add_tracked_inn(body.inn, session, redis)
+        await add_tracked_inn(body.inn, session, redis, user_id=current_user.id)
     except OrganizationNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except EgrulAPIError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
 
     repo = TrackedInnRepository(session)
-    tracked = await repo.get_by_inn(body.inn)
+    tracked = await repo.get_by_inn(body.inn, user_id=current_user.id)
     return TrackedInnResponse.model_validate(tracked)
 
 
@@ -45,6 +47,7 @@ async def add_tracking_bulk(
     body: TrackingBulkAddRequest,
     session: AsyncSession = Depends(get_db),
     redis: aioredis.Redis = Depends(get_redis),
+    current_user: CurrentUser = Depends(get_current_user),
 ) -> TrackingBulkAddResponse:
     results: list[TrackingBulkAddItemResult] = []
     added = skipped = failed = 0
@@ -52,7 +55,7 @@ async def add_tracking_bulk(
     repo = TrackedInnRepository(session)
 
     for inn in body.inns:
-        existing = await repo.get_by_inn(inn)
+        existing = await repo.get_by_inn(inn, user_id=current_user.id)
         if existing and existing.is_active:
             results.append(TrackingBulkAddItemResult(
                 inn=inn,
@@ -64,7 +67,7 @@ async def add_tracking_bulk(
             continue
 
         try:
-            org = await add_tracked_inn(inn, session, redis)
+            org = await add_tracked_inn(inn, session, redis, user_id=current_user.id)
             org_name = org.short_name or org.full_name
             results.append(TrackingBulkAddItemResult(inn=inn, success=True, org_name=org_name))
             added += 1
@@ -81,9 +84,11 @@ async def add_tracking_bulk(
 @router.get("", response_model=list[TrackedInnResponse])
 async def list_tracking(
     session: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ) -> list[TrackedInnResponse]:
     repo = TrackedInnRepository(session)
-    items = await repo.get_list(only_active=True)
+    user_id = None if current_user.is_admin else current_user.id
+    items = await repo.get_list(only_active=True, user_id=user_id)
     return [TrackedInnResponse.model_validate(i) for i in items]
 
 
@@ -91,9 +96,11 @@ async def list_tracking(
 async def get_tracking(
     inn: str,
     session: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ) -> TrackedInnDetailResponse:
     repo = TrackedInnRepository(session)
-    tracked = await repo.get_detail(inn)
+    user_id = None if current_user.is_admin else current_user.id
+    tracked = await repo.get_detail(inn, user_id=user_id)
     if not tracked:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ИНН не найден")
 
@@ -110,9 +117,11 @@ async def get_tracking(
 async def delete_tracking(
     inn: str,
     session: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ) -> None:
     repo = TrackedInnRepository(session)
-    tracked = await repo.get_by_inn(inn)
+    user_id = None if current_user.is_admin else current_user.id
+    tracked = await repo.get_by_inn(inn, user_id=user_id)
     if not tracked:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ИНН не найден")
     await repo.deactivate(tracked)
@@ -122,9 +131,11 @@ async def delete_tracking(
 async def confirm_tracking(
     inn: str,
     session: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ) -> None:
+    user_id = None if current_user.is_admin else current_user.id
     try:
-        await confirm_tracked_inn(inn, session)
+        await confirm_tracked_inn(inn, session, user_id=user_id)
     except OrganizationNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
@@ -134,9 +145,11 @@ async def manual_check(
     inn: str,
     session: AsyncSession = Depends(get_db),
     redis: aioredis.Redis = Depends(get_redis),
+    current_user: CurrentUser = Depends(get_current_user),
 ) -> CheckResultResponse:
+    user_id = None if current_user.is_admin else current_user.id
     try:
-        result = await check_inn(inn, session, redis, force_refresh=True)
+        result = await check_inn(inn, session, redis, force_refresh=True, user_id=user_id)
     except OrganizationNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except EgrulAPIError as exc:
