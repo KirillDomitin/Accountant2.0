@@ -1,0 +1,70 @@
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile.prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /root/certbot/conf:/etc/letsencrypt:ro
+      - /root/certbot/www:/var/www/certbot
+    depends_on:
+      - auth-service
+      - backend
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: ./auth-service
+    expose:
+      - "8001"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    expose:
+      - "8000"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

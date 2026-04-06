@@ -26,7 +26,7 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
         key=_COOKIE,
         value=token,
         httponly=True,
-        secure=False,   # поменять на True при HTTPS
+        secure=True,
         samesite="strict",
         max_age=_COOKIE_TTL,
         path="/auth/refresh",
