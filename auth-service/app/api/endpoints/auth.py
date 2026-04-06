@@ -90,11 +90,11 @@ async def logout(
     _clear_refresh_cookie(response)
 
 
-@router.get("/validate")
+@router.get("/validate", status_code=status.HTTP_200_OK)
 async def validate(
     response: Response,
     request: Request,
-) -> Response:
+) -> dict:
     """Внутренний эндпоинт для nginx auth_request."""
     authorization = request.headers.get("Authorization")
     if not authorization or not authorization.startswith("Bearer "):
@@ -106,7 +106,7 @@ async def validate(
 
     response.headers["X-User-Id"] = payload["sub"]
     response.headers["X-User-Role"] = payload["role"]
-    return response
+    return {}
 
 
 # ── Admin-only эндпоинты ─────────────────────────────────────────────────────
