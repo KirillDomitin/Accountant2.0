@@ -1,6 +1,7 @@
 """Бизнес-логика отслеживания изменений по ИНН."""
 import hashlib
 import json
+import logging
 import uuid
 from dataclasses import asdict
 
@@ -8,6 +9,8 @@ import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import EgrulAPIError, OrganizationNotFoundError
+
+logger = logging.getLogger(__name__)
 from app.repositories.tracked_inn import TrackedInnRepository
 from app.repositories.tracking_change import TrackingChangeRepository
 from app.services.egrul_client import fetch_egrul_data
@@ -80,9 +83,13 @@ async def add_tracked_inn(
         if not existing.is_active:
             existing.is_active = True
             await repo.update_check(existing, data_hash, org_name, raw_response=raw)
+            logger.info("Tracking reactivated for INN %s (%s)", inn, org_name)
+        else:
+            logger.info("Tracking already active for INN %s (%s)", inn, org_name)
         return org
 
     await repo.create(inn=inn, org_name=org_name, data_hash=data_hash, raw_response=raw, user_id=user_id)
+    logger.info("Tracking added for INN %s (%s, user=%s)", inn, org_name, user_id)
     return org
 
 
@@ -115,6 +122,8 @@ async def check_inn(
     has_real_changes = bool(changed_fields) and not is_initial
 
     if has_real_changes:
+        fields = [c["field"] for c in changed_fields]
+        logger.info("Changes detected for INN %s (%s): %s", inn, org_name, ", ".join(fields))
         await change_repo.create(
             tracked_inn_id=tracked.id,
             change_description={
@@ -126,6 +135,7 @@ async def check_inn(
         await inn_repo.set_pending(tracked, new_hash, raw, changed_fields)
         await inn_repo.update_last_checked(tracked, org_name)
     else:
+        logger.info("No changes for INN %s (%s)", inn, org_name)
         await inn_repo.update_check(tracked, new_hash, org_name, raw_response=raw)
 
     return {
@@ -149,8 +159,16 @@ async def check_all_tracked_inns(session: AsyncSession, redis: aioredis.Redis) -
     repo = TrackedInnRepository(session)
     active = await repo.get_list(only_active=True)
 
+    logger.info("Daily check started: %d active INNs", len(active))
+    errors = 0
     for tracked in active:
         try:
             await check_inn(tracked.inn, session, redis, force_refresh=True, user_id=tracked.user_id)
-        except (OrganizationNotFoundError, EgrulAPIError):
-            pass
+        except OrganizationNotFoundError:
+            logger.warning("Daily check: INN %s not found in EGRUL", tracked.inn)
+            errors += 1
+        except EgrulAPIError as exc:
+            logger.error("Daily check: EGRUL API error for INN %s: %s", tracked.inn, exc)
+            errors += 1
+
+    logger.info("Daily check finished: %d processed, %d errors", len(active), errors)

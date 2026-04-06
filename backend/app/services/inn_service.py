@@ -1,11 +1,14 @@
 """Оркестрация: получение данных ЕГРЮЛ → генерация docx → сохранение истории."""
 import io
+import logging
 import uuid
 
 import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import EgrulAPIError, OrganizationNotFoundError
+
+logger = logging.getLogger(__name__)
 from app.models.request_history import RequestStatus
 from app.repositories.request_history import RequestHistoryRepository
 from app.services.docx_generator import generate_docx
@@ -23,6 +26,7 @@ async def lookup_inn(
     Возвращает (docx_buffer, filename).
     Сохраняет запись в request_history независимо от результата.
     """
+    logger.info("INN lookup started: %s (user=%s)", inn, user_id)
     repo = RequestHistoryRepository(session)
 
     try:
@@ -30,12 +34,15 @@ async def lookup_inn(
         org = parse_egrul_response(raw)
         buf = generate_docx(org)
     except OrganizationNotFoundError as exc:
+        logger.info("INN lookup failed — not found: %s", inn)
         await repo.create(inn=inn, status=RequestStatus.error, error_message=str(exc), user_id=user_id)
         raise
     except EgrulAPIError as exc:
+        logger.error("INN lookup failed — EGRUL API error for %s: %s", inn, exc)
         await repo.create(inn=inn, status=RequestStatus.error, error_message=str(exc), user_id=user_id)
         raise
     except Exception as exc:
+        logger.error("INN lookup failed — unexpected error for %s: %s", inn, exc, exc_info=True)
         await repo.create(
             inn=inn,
             status=RequestStatus.error,
@@ -44,10 +51,12 @@ async def lookup_inn(
         )
         raise
 
+    org_name = org.short_name or org.full_name
+    logger.info("INN lookup success: %s — %s", inn, org_name)
     await repo.create(
         inn=inn,
         status=RequestStatus.success,
-        org_name=org.short_name or org.full_name,
+        org_name=org_name,
         raw_response=raw,
         user_id=user_id,
     )
