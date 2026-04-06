@@ -97,7 +97,7 @@ function LoginPage({ onLogin }) {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Платформа бухгалтера</p>
-                <h1 className="text-xl font-semibold">Контур Документы</h1>
+                <h1 className="text-xl font-semibold">Бухгалтер.Онлайн</h1>
               </div>
             </div>
 
@@ -572,8 +572,8 @@ function MainApp({ auth, onLogout }) {
                 </div>
                 <div>
                   <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Платформа бухгалтера</p>
-                  <h1 className="text-3xl md:text-4xl font-semibold">Контур Документы</h1>
-                  <p className="mt-1 text-slate-300">ЕГРЮЛ, документы и мониторинг изменений — всё в одном окне</p>
+                  <h1 className="text-3xl md:text-4xl font-semibold">Бухгалтер.Онлайн</h1>
+                  <p className="mt-1 text-slate-300">ЕГРЮЛ, документы, мониторинг изменений и налоговый календарь — всё в одном окне</p>
                 </div>
               </div>
 
