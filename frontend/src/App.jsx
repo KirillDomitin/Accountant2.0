@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import * as api from './api'
+import CalendarSection from './components/Calendar'
 
 const TAG_STYLES = {
   success:   'bg-emerald-500/15 text-emerald-300 border-emerald-400/30',
@@ -609,6 +610,9 @@ function MainApp({ auth, onLogout }) {
         {/* ── Admin: Users Panel ── */}
         {isAdmin && <UsersPanel showToast={showToast} />}
 
+        {/* ── Tax Calendar ── */}
+        <CalendarSection />
+
         {/* ── Main grid ── */}
         <section className="grid grid-cols-1 xl:grid-cols-12 gap-6">
 
@@ -864,6 +868,7 @@ function MainApp({ auth, onLogout }) {
 
           </div>
         </section>
+
       </div>
 
       {/* Bulk result modal */}
