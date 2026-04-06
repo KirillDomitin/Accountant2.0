@@ -379,6 +379,9 @@ export default function App() {
 function MainApp({ auth, onLogout }) {
   const isAdmin = auth.role === 'admin'
 
+  // uuid → email map, populated only for admin
+  const [userMap, setUserMap] = useState({})
+
   const [inn, setInn] = useState('')
   const [innValidationError, setInnValidationError] = useState('')
   const [lookupLoading, setLookupLoading] = useState(false)
@@ -436,6 +439,15 @@ function MainApp({ auth, onLogout }) {
     loadHistory()
     loadTracking()
   }, [loadHistory, loadTracking])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    api.getUsers().then(users => {
+      const map = {}
+      users.forEach(u => { map[u.id] = u.email })
+      setUserMap(map)
+    }).catch(() => {})
+  }, [isAdmin])
 
   const handleInnChange = (e) => {
     const clean = sanitizeInn(e.target.value)
@@ -663,11 +675,12 @@ function MainApp({ auth, onLogout }) {
               </div>
 
               <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/40">
-                <div className="grid grid-cols-[1fr,0.7fr,0.5fr,0.65fr] gap-4 border-b border-white/10 px-5 py-4 text-xs uppercase tracking-wide text-slate-400">
+                <div className={`grid ${isAdmin ? 'grid-cols-[1fr,0.7fr,0.5fr,0.65fr,0.8fr]' : 'grid-cols-[1fr,0.7fr,0.5fr,0.65fr]'} gap-4 border-b border-white/10 px-5 py-4 text-xs uppercase tracking-wide text-slate-400`}>
                   <div>Компания</div>
                   <div>ИНН</div>
                   <div>Статус</div>
                   <div>Дата</div>
+                  {isAdmin && <div>Пользователь</div>}
                 </div>
 
                 {historyLoading && (
@@ -679,7 +692,7 @@ function MainApp({ auth, onLogout }) {
                 {history.map(item => (
                   <div
                     key={item.id}
-                    className="grid grid-cols-[1fr,0.7fr,0.5fr,0.65fr] gap-4 px-5 py-4 border-b border-white/5 last:border-b-0 items-center hover:bg-white/[0.03] transition-colors"
+                    className={`grid ${isAdmin ? 'grid-cols-[1fr,0.7fr,0.5fr,0.65fr,0.8fr]' : 'grid-cols-[1fr,0.7fr,0.5fr,0.65fr]'} gap-4 px-5 py-4 border-b border-white/5 last:border-b-0 items-center hover:bg-white/[0.03] transition-colors`}
                   >
                     <div>
                       <div className="font-medium">{item.org_name || '—'}</div>
@@ -694,6 +707,11 @@ function MainApp({ auth, onLogout }) {
                       </span>
                     </div>
                     <div className="text-slate-400 text-sm">{formatDate(item.created_at)}</div>
+                    {isAdmin && (
+                      <div className="text-slate-400 text-xs truncate">
+                        {item.user_id ? (userMap[item.user_id] || item.user_id.slice(0, 8) + '…') : '—'}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -758,6 +776,11 @@ function MainApp({ auth, onLogout }) {
                       <div className="min-w-0">
                         <div className="font-medium text-sm truncate">{item.org_name || 'Неизвестно'}</div>
                         <div className="text-xs text-slate-400 mt-1">ИНН: {item.inn}</div>
+                        {isAdmin && item.user_id && (
+                          <div className="text-xs text-violet-400 mt-0.5 truncate">
+                            {userMap[item.user_id] || item.user_id.slice(0, 8) + '…'}
+                          </div>
+                        )}
                       </div>
                       <span className={`inline-flex rounded-full border px-3 py-1 text-xs shrink-0 ${tagStyle(item.is_active ? 'active' : 'inactive')}`}>
                         {item.is_active ? 'Активно' : 'Пауза'}

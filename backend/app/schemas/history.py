@@ -8,6 +8,7 @@ from app.models.request_history import RequestStatus
 
 class HistoryItemResponse(BaseModel):
     id: uuid.UUID
+    user_id: uuid.UUID | None = None
     inn: str
     org_name: str | None
     status: RequestStatus
