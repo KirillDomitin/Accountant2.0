@@ -589,7 +589,7 @@ function MainApp({ auth, onLogout }) {
                 </div>
                 <div className="flex flex-col items-end gap-2 ml-2">
                   <div className="text-xs text-slate-400 text-right">
-                    {auth.sub?.slice(0, 8)}...
+                    {auth.email || auth.sub?.slice(0, 8) + '…'}
                     <span className={`ml-2 inline-flex rounded-full border px-2 py-0.5 text-xs ${isAdmin ? 'bg-violet-500/15 text-violet-300 border-violet-400/30' : tagStyle('active')}`}>
                       {isAdmin ? 'Админ' : 'Пользователь'}
                     </span>

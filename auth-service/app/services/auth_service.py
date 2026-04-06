@@ -38,10 +38,10 @@ async def _check_rate_limit(ip: str, redis: aioredis.Redis) -> None:
 
 
 async def _store_refresh_token(
-    token: str, user_id: uuid.UUID, role: str, redis: aioredis.Redis
+    token: str, user_id: uuid.UUID, role: str, email: str, redis: aioredis.Redis
 ) -> None:
     token_hash = hash_token(token)
-    data = json.dumps({"user_id": str(user_id), "role": role})
+    data = json.dumps({"user_id": str(user_id), "role": role, "email": email})
     await redis.setex(f"auth:refresh:{token_hash}", REFRESH_TTL, data)
 
 
@@ -61,9 +61,9 @@ async def login(
 
     await redis.delete(f"auth:attempts:{client_ip}")
 
-    access_token = create_access_token(user.id, user.role)
+    access_token = create_access_token(user.id, user.role, user.email)
     refresh_token = generate_refresh_token()
-    await _store_refresh_token(refresh_token, user.id, user.role, redis)
+    await _store_refresh_token(refresh_token, user.id, user.role, user.email, redis)
 
     return access_token, refresh_token
 
@@ -81,10 +81,11 @@ async def refresh_tokens(
     data = json.loads(raw)
     user_id = uuid.UUID(data["user_id"])
     role = data["role"]
+    email = data.get("email", "")
 
-    new_access = create_access_token(user_id, role)
+    new_access = create_access_token(user_id, role, email)
     new_refresh = generate_refresh_token()
-    await _store_refresh_token(new_refresh, user_id, role, redis)
+    await _store_refresh_token(new_refresh, user_id, role, email, redis)
 
     return new_access, new_refresh
 

@@ -17,9 +17,10 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
-def create_access_token(user_id: uuid.UUID, role: str) -> str:
+def create_access_token(user_id: uuid.UUID, role: str, email: str) -> str:
     payload = {
         "sub": str(user_id),
+        "email": email,
         "role": role,
         "jti": str(uuid.uuid4()),
         "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes),
