@@ -1,6 +1,7 @@
 """Бизнес-логика отслеживания изменений по ИНН."""
 import hashlib
 import json
+import uuid
 from dataclasses import asdict
 
 import redis.asyncio as aioredis
@@ -64,10 +65,11 @@ async def add_tracked_inn(
     inn: str,
     session: AsyncSession,
     redis: aioredis.Redis,
+    user_id: uuid.UUID | None = None,
 ) -> OrganizationData:
     """Добавляет ИНН в отслеживание. Если уже есть — реактивирует."""
     repo = TrackedInnRepository(session)
-    existing = await repo.get_by_inn(inn)
+    existing = await repo.get_by_inn(inn, user_id=user_id)
 
     raw = await fetch_egrul_data(inn, redis)
     org = parse_egrul_response(raw)
@@ -80,7 +82,7 @@ async def add_tracked_inn(
             await repo.update_check(existing, data_hash, org_name, raw_response=raw)
         return org
 
-    await repo.create(inn=inn, org_name=org_name, data_hash=data_hash, raw_response=raw)
+    await repo.create(inn=inn, org_name=org_name, data_hash=data_hash, raw_response=raw, user_id=user_id)
     return org
 
 
@@ -89,6 +91,7 @@ async def check_inn(
     session: AsyncSession,
     redis: aioredis.Redis,
     force_refresh: bool = True,
+    user_id: uuid.UUID | None = None,
 ) -> dict:
     """
     Проверяет изменения для одного ИНН.
@@ -97,7 +100,7 @@ async def check_inn(
     inn_repo = TrackedInnRepository(session)
     change_repo = TrackingChangeRepository(session)
 
-    tracked = await inn_repo.get_by_inn(inn)
+    tracked = await inn_repo.get_by_inn(inn, user_id=user_id)
     if not tracked:
         raise OrganizationNotFoundError(f"ИНН {inn} не найден в списке отслеживания")
 
@@ -132,10 +135,10 @@ async def check_inn(
     }
 
 
-async def confirm_tracked_inn(inn: str, session: AsyncSession) -> None:
+async def confirm_tracked_inn(inn: str, session: AsyncSession, user_id: uuid.UUID | None = None) -> None:
     """Подтверждает pending-изменения: копирует новые данные в основные поля."""
     repo = TrackedInnRepository(session)
-    tracked = await repo.get_by_inn(inn)
+    tracked = await repo.get_by_inn(inn, user_id=user_id)
     if not tracked:
         raise OrganizationNotFoundError(f"ИНН {inn} не найден в списке отслеживания")
     await repo.confirm_pending(tracked)
@@ -148,6 +151,6 @@ async def check_all_tracked_inns(session: AsyncSession, redis: aioredis.Redis) -
 
     for tracked in active:
         try:
-            await check_inn(tracked.inn, session, redis, force_refresh=True)
+            await check_inn(tracked.inn, session, redis, force_refresh=True, user_id=tracked.user_id)
         except (OrganizationNotFoundError, EgrulAPIError):
             pass

@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -11,23 +12,33 @@ class TrackedInnRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_by_inn(self, inn: str) -> TrackedInn | None:
+    async def get_by_inn(self, inn: str, user_id: uuid.UUID | None = None) -> TrackedInn | None:
         q = select(TrackedInn).where(TrackedInn.inn == inn)
+        if user_id is not None:
+            q = q.where(TrackedInn.user_id == user_id)
         return (await self._session.execute(q)).scalar_one_or_none()
 
-    async def get_list(self, only_active: bool = False) -> list[TrackedInn]:
+    async def get_list(
+        self,
+        only_active: bool = False,
+        user_id: uuid.UUID | None = None,
+    ) -> list[TrackedInn]:
         q = select(TrackedInn)
         if only_active:
             q = q.where(TrackedInn.is_active == True)  # noqa: E712
+        if user_id is not None:
+            q = q.where(TrackedInn.user_id == user_id)
         q = q.order_by(TrackedInn.created_at.desc())
         return list((await self._session.execute(q)).scalars().all())
 
-    async def get_detail(self, inn: str) -> TrackedInn | None:
+    async def get_detail(self, inn: str, user_id: uuid.UUID | None = None) -> TrackedInn | None:
         q = (
             select(TrackedInn)
             .where(TrackedInn.inn == inn)
             .options(selectinload(TrackedInn.changes))
         )
+        if user_id is not None:
+            q = q.where(TrackedInn.user_id == user_id)
         return (await self._session.execute(q)).scalar_one_or_none()
 
     async def create(
@@ -36,9 +47,11 @@ class TrackedInnRepository:
         org_name: str | None,
         data_hash: str,
         raw_response: dict | None = None,
+        user_id: uuid.UUID | None = None,
     ) -> TrackedInn:
         record = TrackedInn(
             inn=inn,
+            user_id=user_id,
             org_name=org_name,
             last_data_hash=data_hash,
             last_raw_response=raw_response,

@@ -17,9 +17,11 @@ class RequestHistoryRepository:
         org_name: str | None = None,
         error_message: str | None = None,
         raw_response: dict | None = None,
+        user_id: uuid.UUID | None = None,
     ) -> RequestHistory:
         record = RequestHistory(
             inn=inn,
+            user_id=user_id,
             org_name=org_name,
             status=status,
             error_message=error_message,
@@ -31,13 +33,20 @@ class RequestHistoryRepository:
         return record
 
     async def get_list(
-        self, offset: int = 0, limit: int = 20
+        self,
+        offset: int = 0,
+        limit: int = 20,
+        user_id: uuid.UUID | None = None,
     ) -> tuple[list[RequestHistory], int]:
-        count_q = select(func.count()).select_from(RequestHistory)
+        base_q = select(RequestHistory)
+        if user_id is not None:
+            base_q = base_q.where(RequestHistory.user_id == user_id)
+
+        count_q = select(func.count()).select_from(base_q.subquery())
         total = (await self._session.execute(count_q)).scalar_one()
 
         items_q = (
-            select(RequestHistory)
+            base_q
             .order_by(RequestHistory.created_at.desc())
             .offset(offset)
             .limit(limit)

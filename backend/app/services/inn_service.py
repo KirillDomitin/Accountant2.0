@@ -1,5 +1,6 @@
 """Оркестрация: получение данных ЕГРЮЛ → генерация docx → сохранение истории."""
 import io
+import uuid
 
 import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,7 @@ async def lookup_inn(
     inn: str,
     session: AsyncSession,
     redis: aioredis.Redis,
+    user_id: uuid.UUID | None = None,
 ) -> tuple[io.BytesIO, str]:
     """
     Возвращает (docx_buffer, filename).
@@ -28,16 +30,17 @@ async def lookup_inn(
         org = parse_egrul_response(raw)
         buf = generate_docx(org)
     except OrganizationNotFoundError as exc:
-        await repo.create(inn=inn, status=RequestStatus.error, error_message=str(exc))
+        await repo.create(inn=inn, status=RequestStatus.error, error_message=str(exc), user_id=user_id)
         raise
     except EgrulAPIError as exc:
-        await repo.create(inn=inn, status=RequestStatus.error, error_message=str(exc))
+        await repo.create(inn=inn, status=RequestStatus.error, error_message=str(exc), user_id=user_id)
         raise
     except Exception as exc:
         await repo.create(
             inn=inn,
             status=RequestStatus.error,
             error_message=f"Внутренняя ошибка: {exc}",
+            user_id=user_id,
         )
         raise
 
@@ -46,6 +49,7 @@ async def lookup_inn(
         status=RequestStatus.success,
         org_name=org.short_name or org.full_name,
         raw_response=raw,
+        user_id=user_id,
     )
 
     safe_name = (org.short_name or inn).replace('"', "").replace(" ", "_")

@@ -5,6 +5,7 @@ from fastapi.responses import Response
 import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies import CurrentUser, get_current_user
 from app.core.exceptions import EgrulAPIError, OrganizationNotFoundError
 from app.db.redis import get_redis
 from app.db.session import get_db
@@ -19,9 +20,10 @@ async def lookup(
     body: InnLookupRequest,
     session: AsyncSession = Depends(get_db),
     redis: aioredis.Redis = Depends(get_redis),
+    current_user: CurrentUser = Depends(get_current_user),
 ) -> Response:
     try:
-        buf, filename = await lookup_inn(body.inn, session, redis)
+        buf, filename = await lookup_inn(body.inn, session, redis, user_id=current_user.id)
     except OrganizationNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except EgrulAPIError as exc:
