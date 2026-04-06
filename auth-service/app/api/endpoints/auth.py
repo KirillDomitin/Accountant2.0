@@ -12,7 +12,13 @@ from app.core.exceptions import (
 from app.db.redis import get_redis
 from app.db.session import get_db
 from app.repositories.user import UserRepository
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse, UserStatusRequest
+from app.schemas.auth import (
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
+    UserStatusRequest,
+)
 from app.services import auth_service
 
 router = APIRouter(prefix="/auth", tags=["Auth"])

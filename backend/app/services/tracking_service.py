@@ -3,18 +3,17 @@ import hashlib
 import json
 import logging
 import uuid
-from dataclasses import asdict
 
 import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import EgrulAPIError, OrganizationNotFoundError
-
-logger = logging.getLogger(__name__)
 from app.repositories.tracked_inn import TrackedInnRepository
 from app.repositories.tracking_change import TrackingChangeRepository
 from app.services.egrul_client import fetch_egrul_data
 from app.services.egrul_parser import OrganizationData, parse_egrul_response
+
+logger = logging.getLogger(__name__)
 
 
 def _compute_hash(raw: dict) -> str:

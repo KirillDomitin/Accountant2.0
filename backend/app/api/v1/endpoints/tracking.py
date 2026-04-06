@@ -10,13 +10,13 @@ from app.repositories.tracked_inn import TrackedInnRepository
 from app.repositories.tracking_change import TrackingChangeRepository
 from app.schemas.tracking import (
     CheckResultResponse,
-    TrackingAddRequest,
-    TrackingBulkAddRequest,
-    TrackingBulkAddItemResult,
-    TrackingBulkAddResponse,
-    TrackingChangeResponse,
     TrackedInnDetailResponse,
     TrackedInnResponse,
+    TrackingAddRequest,
+    TrackingBulkAddItemResult,
+    TrackingBulkAddRequest,
+    TrackingBulkAddResponse,
+    TrackingChangeResponse,
 )
 from app.services.tracking_service import add_tracked_inn, check_inn, confirm_tracked_inn
 

@@ -1,8 +1,8 @@
+import re
 import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, field_validator, model_validator
-import re
 
 
 class TrackingAddRequest(BaseModel):

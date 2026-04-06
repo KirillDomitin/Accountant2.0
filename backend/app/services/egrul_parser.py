@@ -1,5 +1,5 @@
 """Парсинг ответа ЕГРЮЛ API в структурированные данные."""
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from decimal import Decimal
 
 from num2words import num2words

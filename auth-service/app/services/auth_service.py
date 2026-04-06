@@ -10,7 +10,6 @@ from app.core.exceptions import (
     InvalidTokenError,
     RateLimitError,
     UserAlreadyExistsError,
-    UserNotFoundError,
 )
 from app.core.security import (
     create_access_token,

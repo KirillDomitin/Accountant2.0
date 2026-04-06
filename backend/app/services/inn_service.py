@@ -7,13 +7,13 @@ import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import EgrulAPIError, OrganizationNotFoundError
-
-logger = logging.getLogger(__name__)
 from app.models.request_history import RequestStatus
 from app.repositories.request_history import RequestHistoryRepository
 from app.services.docx_generator import generate_docx
 from app.services.egrul_client import fetch_egrul_data
 from app.services.egrul_parser import parse_egrul_response
+
+logger = logging.getLogger(__name__)
 
 
 async def lookup_inn(
