@@ -33,7 +33,8 @@ def test_detect_changes_no_previous_hash_returns_initial():
     from app.services.tracking_service import _compute_hash
     h = _compute_hash(raw)
     result = _detect_changes(None, h, None, parse_egrul_response(raw))
-    assert result == ["initial"]
+    assert len(result) == 1
+    assert result[0]["field"] == "initial"
 
 
 def test_detect_changes_name_changed():
@@ -46,8 +47,9 @@ def test_detect_changes_name_changed():
     new_hash = _compute_hash(new_raw)
 
     result = _detect_changes(old_hash, new_hash, old_raw, parse_egrul_response(new_raw))
+    fields = [c["field"] for c in result]
 
-    assert "Полное наименование" in result
+    assert "Полное наименование" in fields
 
 
 def test_detect_changes_director_changed():
@@ -60,8 +62,9 @@ def test_detect_changes_director_changed():
     new_hash = _compute_hash(new_raw)
 
     result = _detect_changes(old_hash, new_hash, old_raw, parse_egrul_response(new_raw))
+    fields = [c["field"] for c in result]
 
-    assert "Руководитель" in result
+    assert "Руководитель" in fields
 
 
 def test_detect_changes_capital_changed():
@@ -74,8 +77,9 @@ def test_detect_changes_capital_changed():
     new_hash = _compute_hash(new_raw)
 
     result = _detect_changes(old_hash, new_hash, old_raw, parse_egrul_response(new_raw))
+    fields = [c["field"] for c in result]
 
-    assert "Уставный капитал" in result
+    assert "Уставный капитал" in fields
 
 
 def test_detect_changes_misc_when_hash_differs_but_fields_same():
@@ -93,7 +97,8 @@ def test_detect_changes_misc_when_hash_differs_but_fields_same():
 
     result = _detect_changes(old_hash, new_hash, old_raw, parse_egrul_response(new_raw))
 
-    assert result == ["прочие изменения"]
+    assert len(result) == 1
+    assert result[0]["field"] == "прочие изменения"
 
 
 # ---------------------------------------------------------------------------
@@ -250,7 +255,7 @@ async def test_check_inn_detects_name_change_and_saves():
         result = await check_inn("7701234567", session, redis)
 
     assert result["changed"] is True
-    assert "Полное наименование" in result["changed_fields"]
+    assert "Полное наименование" in [c["field"] for c in result["changed_fields"]]
     change_repo_instance.create.assert_called_once()
 
 
